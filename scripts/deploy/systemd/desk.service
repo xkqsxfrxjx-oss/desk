@@ -1,0 +1,21 @@
+[Unit]
+Description=Solana memecoin trading desk (PAPER)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+User=desk
+Group=desk
+WorkingDirectory=/opt/desk
+EnvironmentFile=/etc/desk/desk.env
+Environment=PYTHONUNBUFFERED=1 TZ=Europe/Helsinki
+ExecStart=/opt/desk/.venv/bin/python main.py
+Restart=always
+RestartSec=10
+StandardOutput=append:/opt/desk/logs/main.out
+StandardError=append:/opt/desk/logs/main.out
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

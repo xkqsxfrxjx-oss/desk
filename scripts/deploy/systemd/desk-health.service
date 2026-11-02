@@ -1,0 +1,8 @@
+[Unit]
+Description=Desk healthcheck (stale heartbeats > 5 min -> restart + Telegram alert)
+
+[Service]
+Type=oneshot
+WorkingDirectory=/opt/desk
+EnvironmentFile=/etc/desk/desk.env
+ExecStart=/opt/desk/.venv/bin/python scripts/deploy/healthcheck.py
