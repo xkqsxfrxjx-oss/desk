@@ -9,7 +9,7 @@ while read -r ref lsha rref rsha; do
   [ -z "$lsha" ] && continue
   [ "$ALLOW_DATA_PATH" = 1 ] || vals="$vals"$'\n'"$(sed -n 's/^DATA_PATH=//p' .secrets 2>/dev/null)"
   while IFS= read -r v; do [ -z "$v" ] && continue
-    git grep -q -F -e "$v" "$lsha" -- && { echo "BLOCK: secret value found in $ref"; fail=1; }
+    { git grep -q -F -e "$v" "$lsha" -- || git ls-tree -r --name-only "$lsha" | grep -q -F -e "$v"; } && { echo "BLOCK: secret value found in $ref"; fail=1; }
   done <<< "$vals"
 done
 exit $fail
