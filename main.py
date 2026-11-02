@@ -1,5 +1,7 @@
 """One asyncio process: 5 agents + plan B JSON writer/publisher + Telegram long polling + heartbeats (PAPER)."""
 import asyncio, fcntl, os, sys, time
+if os.path.exists(os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "MOVED_TO_VPS")):
+    sys.exit("desk moved to VPS (data/MOVED_TO_VPS present) - not starting here")
 import config, db, notifier
 from agents.scanner import Scanner
 from agents.auditor import Auditor
