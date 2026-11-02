@@ -92,8 +92,9 @@ class Telegram:
         if low == "live": return await self.cmd_live()
         if low == "invite": return await self.send(f"New to FOMO? {links.SIGNUP_URL}")
         if low == "report":
-            r = self.c.execute("SELECT value FROM settings WHERE key='desk.last_report_url'").fetchone()
-            return await self.send(r[0] if r else "No morning Page yet. The first one comes after the first night.")
+            import report
+            u = report.last_link(self.c)
+            return await self.send(f"Last morning Page: {u}" if u else "No morning Page yet. The first one comes after the first night.")
         await self.send(HELP)
 
     def ticket_note(self, stk=None):
