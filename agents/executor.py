@@ -91,6 +91,7 @@ class Executor:
 
     async def run(self):
         while True:
+            while "executor" in bus.PAUSED: await asyncio.sleep(2)
             job = await bus.executor.get()
             try: await self.handle(job)
             except Exception as e: log.info(f"{job['scan'].get('mint')} executor crashed {type(e).__name__}: {e}")

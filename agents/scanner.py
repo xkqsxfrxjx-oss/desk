@@ -118,6 +118,7 @@ class Scanner:
     async def run(self):
         asyncio.create_task(self.ws_loop())
         while True:
-            try: await self.tick()
+            try:
+                if "scanner" not in bus.PAUSED: await self.tick()
             except Exception as e: log.info(f"tick error {type(e).__name__}: {e}")
             await asyncio.sleep(config.get(self.c, "scanner.poll_s"))

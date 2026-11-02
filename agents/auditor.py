@@ -46,10 +46,16 @@ class Auditor:
                 if i < self.S("retries") - 1: await asyncio.sleep(self.S("retry_wait_s"))
         raise NoData(str(last))
 
-    async def audit(self, scan):
+    async def audit_adhoc(self, mint):
+        """'buy X' on a coin the desk never pushed: audit only, no bus, no activity."""
+        try: d = (await sources.dex_batch([mint])).get(mint) or {}
+        except Exception: d = {}
+        return await self.audit({"mint": mint, "name": d.get("name"), "pool": d.get("pairAddress"), "liquidityUsd": d.get("liquidity_usd")}, forward=False)
+
+    async def audit(self, scan, forward=True):
         mint = scan["mint"]; url = config.get(self.c, "desk.rpc_url"); ts = db.now()
-        if mint in self.done: return None
-        self.done.add(mint)
+        if forward and mint in self.done: return None
+        if forward: self.done.add(mint)
         coin = dict(self.c.execute("SELECT * FROM coins WHERE mint=?", (mint,)).fetchone())
         pool = scan.get("pool") or coin.get("pool")
         cache = {}
@@ -131,6 +137,7 @@ class Auditor:
         out = {"agent": "auditor", "mint": mint, "ts": ts, "passed": reason is None, "layersChecked": len([l for l in layers if l["pass"] is not None]),
                "layers": layers, "holders": holders, "reason": reason}
         log.info(f"{mint} verdict {'PASS 8/8' if reason is None else 'RED ' + reason}")
+        if not forward: return out
         if reason is None:
             await bus.analyst.put({"scan": scan, "audit": out})
         else:
@@ -142,6 +149,7 @@ class Auditor:
 
     async def run(self):
         while True:
+            while "auditor" in bus.PAUSED: await asyncio.sleep(2)
             scan = await bus.auditor.get()
             if not config.get(self.c, "auditor.enabled"): continue
             try: await self.audit(scan)

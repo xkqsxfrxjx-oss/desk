@@ -10,5 +10,5 @@ def encrypt(obj, token):
     return {"v": 1, "iv": base64.b64encode(iv).decode(), "ct": base64.b64encode(ct).decode()}
 def decrypt(env, token):
     return json.loads(AESGCM(_key(token)).decrypt(base64.b64decode(env["iv"]), base64.b64decode(env["ct"]), None))
-def secrets_file(path=os.path.join(os.path.dirname(__file__), ".secrets")):
+def secrets_file(path=os.path.join(os.path.dirname(os.path.abspath(__file__)), ".secrets", "env")):
     return dict(l.strip().split("=", 1) for l in open(path) if "=" in l)

@@ -8,3 +8,4 @@ events: asyncio.Queue = asyncio.Queue(maxsize=10000)   # SSE feed for the app (a
 def emit(kind, data):
     try: events.put_nowait({"kind": kind, **data})
     except asyncio.QueueFull: pass
+PAUSED: set = set()     # agents paused via Telegram "pause X"

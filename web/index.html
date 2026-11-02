@@ -1,2 +1,25 @@
-<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>Desk</title></head>
-<body><h1>Desk</h1><p id="s">Coming soon.</p></body></html>
+<!doctype html>
+<html lang="en"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Desk">
+<meta name="theme-color" content="#0b0d12">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="stylesheet" href="app.css">
+<title>Desk</title>
+</head><body>
+<header id="top"><button id="back" hidden aria-label="Back">‹</button><h1 id="title">Desk</h1><span id="mode" class="badge">…</span></header>
+<main id="view"></main>
+<nav id="tabs">
+  <button data-tab="home" class="on"><span>◉</span>Home</button>
+  <button data-tab="agents"><span>◎</span>Agents</button>
+  <button data-tab="activity"><span>≡</span>Activity</button>
+  <button data-tab="account"><span>◌</span>Account</button>
+</nav>
+<script type="module" src="app.js"></script>
+</body></html>

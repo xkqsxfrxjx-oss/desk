@@ -119,6 +119,7 @@ class Analyst:
         return out
     async def run(self):
         while True:
+            while "analyst" in bus.PAUSED: await asyncio.sleep(2)
             j = await bus.analyst.get()
             try: await self.analyse(j["scan"], j["audit"])
             except Exception as e: log.info(f"{j['scan'].get('mint')} analyst crashed {type(e).__name__}: {e}")
