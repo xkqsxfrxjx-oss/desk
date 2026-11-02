@@ -3,6 +3,9 @@ Description=Desk healthcheck (stale heartbeats > 5 min -> restart + Telegram ale
 
 [Service]
 Type=oneshot
+User=desk
+Group=desk
+Environment=DESK_RESTART_CMD="sudo -n /usr/bin/systemctl restart desk.service"
 WorkingDirectory=/opt/desk
 EnvironmentFile=/etc/desk/desk.env
 ExecStart=/opt/desk/.venv/bin/python scripts/deploy/healthcheck.py

@@ -36,6 +36,9 @@ install -m 600 -o desk -g desk "$T/owner.json" $D/owner.json
 if [ -f "$T/desk.db" ] && [ ! -f $D/data/desk.db ]; then install -m 600 -o desk -g desk "$T/desk.db" $D/data/desk.db; echo "restored data/desk.db"; fi
 chown -R desk:desk $D; chmod 700 $D/.secrets
 echo "[6/7] systemd units"
+# healthcheck runs as desk (so log files stay desk-owned); may only restart desk.service
+echo "desk ALL=(root) NOPASSWD: /usr/bin/systemctl restart desk.service" > /etc/sudoers.d/desk-restart; chmod 440 /etc/sudoers.d/desk-restart
+chown -R desk:desk $D/logs
 cp $D/scripts/deploy/systemd/desk.service $D/scripts/deploy/systemd/desk-health.service $D/scripts/deploy/systemd/desk-health.timer /etc/systemd/system/
 echo "[7/7] enable + start"
 if [ -d /run/systemd/system ]; then
