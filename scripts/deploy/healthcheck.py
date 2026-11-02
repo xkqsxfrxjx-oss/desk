@@ -12,8 +12,9 @@ AGENTS = ["scanner", "auditor", "analyst", "executor", "risk", "api", "telegram"
 
 def stale(c):
     now = time.time(); out = {}
+    agents = AGENTS if os.environ.get("TG_TOKEN") else [a for a in AGENTS if a != "telegram"]  # no token -> no telegram task
     rows = dict(c.execute("SELECT agent, ts FROM heartbeats").fetchall())
-    for a in AGENTS:
+    for a in agents:
         ts = rows.get(a)
         age = now - datetime.fromisoformat(ts.replace("Z", "+00:00")).timestamp() if ts else None
         if age is None or age > STALE_S: out[a] = None if age is None else int(age)
