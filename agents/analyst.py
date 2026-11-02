@@ -38,15 +38,17 @@ def rules_answers(c, d, audit):
     return {"alive_6h": clamp((d.get("volume_h1") or 0) / R("alive_volume_h1")), "organic": org, "flush": flush,
             "chase": clamp((d.get("priceChange_h1") or 0) / R("chase_h1_pct"))}
 
-def gate(c, a):
-    """Code-only gate. Returns (score, passed, failed list)."""
-    A = lambda k: config.get(c, "analyst." + k)
+def gate(c, a, h1=None, A=None):
+    """Code-only gate. Returns (score, passed, failed list). A: setting getter (shadow passes its own)."""
+    A = A or (lambda k: config.get(c, "analyst." + k))
     score = round(100 * (a["alive_6h"] + a["organic"] + a["flush"] + (1 - a["chase"])) / 4)
     failed = []
     if a["alive_6h"] < A("min_alive_6h"): failed.append(f"alive_6h {a['alive_6h']:.2f}")
     if a["organic"] < A("min_organic"): failed.append(f"organic {a['organic']:.2f}")
     if a["chase"] > A("max_chase"): failed.append(f"chase {a['chase']:.2f}")
     if score < A("min_score"): failed.append(f"score {score}")
+    mr = A("min_h1_rise_pct")
+    if mr and (h1 is None or h1 < mr): failed.append(f"1h rise {h1 if h1 is not None else 'n/a'}% < {mr:g}%")
     return score, not failed, failed
 
 class JevError(Exception): pass
@@ -84,6 +86,11 @@ class Analyst:
         if fresh is None:
             try: fresh = (await sources.dex_batch([mint])).get(mint) or {}
             except Exception: fresh = {}
+        h1 = fresh.get("priceChange_h1") if fresh.get("priceChange_h1") is not None else scan.get("h1ChangePct")
+        try:
+            import shadow
+            shadow.consider(self.c, scan, audit, fresh, mode, read_jev=None)
+        except Exception as e: log.info(f"{mint} shadow error {type(e).__name__}: {e}")
         state = build_state(scan, audit, fresh, config.get(self.c, "analyst.max_state_chars"))
         model, tokens, answers, reason = "rules", 0, None, None
         if mode == "jev":
@@ -97,7 +104,7 @@ class Analyst:
             answers = rules_answers(self.c, fresh, audit)
         if answers:
             answers = {k: round(v, 4) for k, v in answers.items()}
-            score, passed, failed = gate(self.c, answers)
+            score, passed, failed = gate(self.c, answers, h1)
         else:
             score, passed, failed = None, False, [reason]
         out = {"agent": "analyst", "mint": mint, "answers": answers, "score": score, "passed": passed, "failed": failed,

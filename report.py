@@ -2,7 +2,7 @@
 CLI: python report.py json [since_iso] | save-link URL | last-link | clear-skips"""
 import json, sys
 from datetime import datetime, timedelta, timezone
-import config, db, links
+import config, db, links, shadow
 KEY = "desk.last_report_url"
 
 def save_link(c, url):
@@ -43,6 +43,8 @@ def build(c, since=None):
         "jev": {"mode": config.get(c, "analyst.mode"), "inputTokens": tokens},
         "feesUsd": round(sum(t["fees_usd"] or 0 for t in trades), 2),
         "pnlUsd": round(sum(t["pnl_usd"] or 0 for t in trades), 2),
+        "rulesCompare": shadow.compare(c, since),
+        "rulesCompareStart": c.execute("SELECT MIN(ts) FROM change_log WHERE who='matias'").fetchone()[0],
         "footer": "New to FOMO? " + links.SIGNUP_URL}
 
 if __name__ == "__main__":

@@ -10,7 +10,7 @@ ROOT = os.path.dirname(os.path.abspath(__file__))
 PAGES = "https://xkqsxfrxjx-oss.github.io/desk/"
 AGENTS = ["scanner", "auditor", "analyst", "executor", "risk"]
 HELP = ("Commands:\n buy X · sell X · why X\n pause Scanner · resume Scanner\n set stop to -8%\n stack 1240\n"
-        " status\n paper | live\n invite\n report\nX = name, symbol or mint.")
+        " status\n paper | live\n invite\n report\n compare\nX = name, symbol or mint.")
 
 class Telegram:
     def __init__(self, c, token=None):
@@ -90,6 +90,10 @@ class Telegram:
         if low == "paper":
             return await self.send(config.set(self.c, "mode", "PAPER"))
         if low == "live": return await self.cmd_live()
+        if low == "compare":
+            import shadow
+            since = self.c.execute("SELECT MIN(ts) FROM change_log WHERE who='matias'").fetchone()[0] or "1970-01-01T00:00:00Z"
+            return await self.send(shadow.compare_text(self.c, since))
         if low == "invite": return await self.send(f"New to FOMO? {links.SIGNUP_URL}")
         if low == "report":
             import report

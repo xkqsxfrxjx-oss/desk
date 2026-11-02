@@ -25,7 +25,7 @@ CREATE TABLE IF NOT EXISTS signals (id INTEGER PRIMARY KEY, mint TEXT NOT NULL U
 CREATE TABLE IF NOT EXISTS positions (id INTEGER PRIMARY KEY, mint TEXT NOT NULL REFERENCES coins(mint), opened_at TEXT NOT NULL,
   entry_price REAL NOT NULL CHECK(entry_price>0), size_usd REAL NOT NULL CHECK(size_usd>0), peak_price REAL NOT NULL,
   stop_price REAL NOT NULL, stop_pct REAL NOT NULL, trail_active INTEGER NOT NULL DEFAULT 0 CHECK(trail_active IN(0,1)),
-  closed_at TEXT, exit_price REAL, exit_reason TEXT CHECK(exit_reason IN('stop','trail','timeout','pulled')),
+  closed_at TEXT, exit_price REAL, exit_reason TEXT CHECK(exit_reason IN('stop','trail','timeout','pulled','take_profit')),
   pnl_usd REAL, fees_usd REAL, mode TEXT NOT NULL {MODE},
   status TEXT NOT NULL DEFAULT 'open' CHECK(status IN('open','exiting','closed')));
 CREATE UNIQUE INDEX IF NOT EXISTS one_open_per_mint ON positions(mint) WHERE status!='closed';
@@ -43,6 +43,14 @@ CREATE TABLE IF NOT EXISTS change_log (ts TEXT NOT NULL, key TEXT NOT NULL, old 
 CREATE TABLE IF NOT EXISTS skips (mint TEXT PRIMARY KEY, until TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS heartbeats (agent TEXT PRIMARY KEY, ts TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS push_subs (endpoint TEXT PRIMARY KEY, p256dh TEXT NOT NULL, auth TEXT NOT NULL, created_at TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS shadow_positions (id INTEGER PRIMARY KEY, ruleset TEXT NOT NULL, mint TEXT NOT NULL REFERENCES coins(mint),
+  opened_at TEXT NOT NULL, entry_price REAL NOT NULL CHECK(entry_price>0), size_usd REAL NOT NULL CHECK(size_usd>0),
+  peak_price REAL NOT NULL, stop_price REAL NOT NULL, stop_pct REAL NOT NULL, trail_start_pct REAL, trail_pct REAL,
+  take_profit_pct REAL, timeout_h REAL NOT NULL, timeout_min_gain_pct REAL NOT NULL, trail_active INTEGER NOT NULL DEFAULT 0,
+  closed_at TEXT, exit_price REAL, exit_reason TEXT, pnl_usd REAL, fees_usd REAL,
+  status TEXT NOT NULL DEFAULT 'open' CHECK(status IN('open','closed')), UNIQUE(ruleset,mint));
+CREATE TABLE IF NOT EXISTS shadow_decisions (ruleset TEXT NOT NULL, mint TEXT NOT NULL, ts TEXT NOT NULL, pass INTEGER NOT NULL,
+  reason TEXT, PRIMARY KEY(ruleset,mint));
 CREATE INDEX IF NOT EXISTS scans_mint ON scans(mint);   CREATE INDEX IF NOT EXISTS audits_mint ON audits(mint);
 CREATE INDEX IF NOT EXISTS activity_ts ON activity(ts); CREATE INDEX IF NOT EXISTS prices_ts ON prices(ts);
 """
@@ -52,7 +60,21 @@ def connect(path=DB):
     c = sqlite3.connect(path, timeout=10, isolation_level=None, check_same_thread=False)
     c.row_factory = sqlite3.Row
     for p in ("journal_mode=WAL", "synchronous=NORMAL", "foreign_keys=ON", "busy_timeout=5000"): c.execute("PRAGMA " + p)
+    _migrate_positions(c)
     c.executescript(SCHEMA); return c
+
+def _migrate_positions(c):
+    """Widen positions.exit_reason CHECK to allow 'take_profit' (rebuild table, keep rows/ids)."""
+    r = c.execute("SELECT sql FROM sqlite_master WHERE type='table' AND name='positions'").fetchone()
+    if not r or "take_profit" in r[0]: return
+    c.execute("PRAGMA foreign_keys=OFF")
+    try:
+        new = SCHEMA.split("CREATE TABLE IF NOT EXISTS positions")[1].split(";")[0]
+        c.executescript("BEGIN; DROP TRIGGER IF EXISTS stop_never_down; DROP TRIGGER IF EXISTS trail_never_off;"
+                        "DROP INDEX IF EXISTS one_open_per_mint; ALTER TABLE positions RENAME TO positions_old;"
+                        "CREATE TABLE positions" + new + ";"
+                        "INSERT INTO positions SELECT * FROM positions_old; DROP TABLE positions_old; COMMIT;")
+    finally: c.execute("PRAGMA foreign_keys=ON")
 
 # --- price writers: 1 DexScreener batch per writer, each writes its own mints only ---
 def write_prices(c, rows, ts=None):

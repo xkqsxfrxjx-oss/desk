@@ -22,6 +22,8 @@ SPEC = {
  "executor.recheck_price_up_pct": (15, 1, 1000), "executor.confirm_window_min": (5, 1, 60),
  "risk.poll_s": (15, 5, 300), "risk.stop_pct": (6, 0.5, 90), "risk.trail_start_pct": (20, 1, 1000),
  "risk.trail_pct": (12, 0.5, 90), "risk.timeout_h": (3, 0.25, 72), "risk.timeout_min_gain_pct": (5, -50, 1000),
+ "risk.take_profit_pct": (0, 0, 10000), "risk.trail_enabled": (True, None, None),
+ "analyst.min_h1_rise_pct": (0, -100, 10000), "shadow.enabled": (True, None, None),
  "risk.confirm_window_min": (2, 1, 60), "risk.no_price_polls": (4, 1, 100), "risk.backoff_429_s": (30, 1, 600),
  "desk.mode": ("PAPER", {"PAPER", "LIVE"}, None), "desk.paper_start_stack": (200, 1, 10_000_000),
  "desk.live_stack": (0, 0, 100_000_000), "desk.report_time": ("08:00", None, None),
@@ -32,7 +34,8 @@ SPEC = {
 ALIASES = {"stop": "risk.stop_pct", "trail": "risk.trail_pct", "trail start": "risk.trail_start_pct",
  "timeout": "risk.timeout_h", "stack pct": "executor.stack_pct", "ticket": "executor.min_ticket_usd",
  "below min": "executor.below_min", "min liquidity": "scanner.min_liquidity_usd", "min score": "analyst.min_score",
- "mode": "desk.mode", "rpc": "desk.rpc_url", "report time": "desk.report_time"}
+ "mode": "desk.mode", "rpc": "desk.rpc_url", "report time": "desk.report_time",
+ "take profit": "risk.take_profit_pct", "min rise": "analyst.min_h1_rise_pct"}
 SHORT = {"risk.stop_pct": "stop", "risk.trail_pct": "trail"}
 
 class SettingError(ValueError): pass

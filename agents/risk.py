@@ -32,9 +32,13 @@ class Risk:
         e = p["entry_price"]; action = None
         if price <= p["stop_price"]: action = "stop"
         else:
-            if not p["trail_active"] and price >= e * (1 + self.S("trail_start_pct") / 100):
+            tp = self.S("take_profit_pct")
+            if tp and price >= e * (1 + tp / 100): action = "take_profit"
+            elif not self.S("trail_enabled"): pass
+            elif not p["trail_active"] and price >= e * (1 + self.S("trail_start_pct") / 100):
                 self.c.execute("UPDATE positions SET trail_active=1 WHERE id=?", (p["id"],)); p["trail_active"] = 1
-            if p["trail_active"] and price <= peak * (1 - self.S("trail_pct") / 100): action = "trail"
+            if action: pass
+            elif p["trail_active"] and price <= peak * (1 - self.S("trail_pct") / 100): action = "trail"
             elif (now - datetime.fromisoformat(p["opened_at"].replace("Z", "+00:00"))).total_seconds() >= self.S("timeout_h") * 3600 \
                     and price < e * (1 + self.S("timeout_min_gain_pct") / 100): action = "timeout"
         trail_line = peak * (1 - self.S("trail_pct") / 100) if p["trail_active"] else None
@@ -54,12 +58,12 @@ class Risk:
             if reason == "stop":
                 kind, title, sub, val = "stopped", f"Stopped {name}", f"Risk · -{p['stop_pct']:g}% stop", f"-${abs(pnl):,.2f}"
             else:
-                label = {"trail": "trailing stop", "timeout": "timeout", "pulled": "liquidity pulled"}[reason]
+                label = {"take_profit": "take profit", "trail": "trailing stop", "timeout": "timeout", "pulled": "liquidity pulled"}[reason]
                 kind, title, sub, val = "sold", f"Sold {name}", f"Risk · {label}", f"{'+' if pnl >= 0 else '-'}${abs(pnl):,.2f} / {pct:+g}%"
             self.c.execute("INSERT INTO activity(ts,kind,mint,agent,title,subtitle,value) VALUES(?,?,?,?,?,?,?)",
                            (now, kind, p["mint"], "risk", title, sub, val))
         sign = lambda x: f"{'+' if x >= 0 else '-'}${abs(x):,.2f}"
-        txt = {"trail": f"Sold {name} · {sign(pnl)} ({pct:+g}%)",
+        txt = {"take_profit": f"Sell {name}, take profit · {sign(pnl)} ({pct:+g}%)", "trail": f"Sold {name} · {sign(pnl)} ({pct:+g}%)",
                "stop": f"{name} hit the -{p['stop_pct']:g}% stop · -${abs(pnl):,.2f}",
                "timeout": f"Sell {name}, dead money · {pct:+g}% in {self.S('timeout_h'):g}h",
                "pulled": f"Sell {name} now, liquidity pulled · {sign(pnl)}"}[reason]
@@ -75,13 +79,20 @@ class Risk:
     async def tick(self):
         rows = [dict(r) for r in self.c.execute(
             "SELECT p.*, c.name FROM positions p JOIN coins c USING(mint) WHERE p.status='open'")]
-        if not rows: return
-        try: reads = await sources.dex_batch([r["mint"] for r in rows])
+        import shadow
+        sh = shadow.open_rows(self.c)
+        if not rows and not sh: return
+        try: reads = await sources.dex_batch(list({r["mint"] for r in rows} | {r["mint"] for r in sh}))
         except sources.RateLimited:
             log.info(f"429, backing off {self.S('backoff_429_s')}s, missed poll for {len(rows)} positions")
             await asyncio.sleep(self.S("backoff_429_s")); return
         except Exception as e:
-            reads = {r["mint"]: None for r in rows}; log.info(f"dexscreener error {e}")
+            reads = {r["mint"]: None for r in rows + sh}; log.info(f"dexscreener error {e}")
+        for q in sh:   # shadow: hypothetical only, no pushes, no live rows touched
+            d = reads.get(q["mint"]) or {}
+            if d.get("priceUsd") or (d.get("liquidity_usd") is not None and d["liquidity_usd"] <= 0):
+                try: shadow.evaluate(self.c, q, d.get("priceUsd"), d.get("liquidity_usd"))
+                except Exception as e: log.info(f"{q['mint']} shadow eval error {e}")
         db.write_prices(self.c, [(m, d["priceUsd"], d["volume_m5"]) for m, d in reads.items() if d and d.get("priceUsd")])
         for p in rows:
             d = reads.get(p["mint"]) or {}
