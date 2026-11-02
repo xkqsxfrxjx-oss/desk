@@ -3,7 +3,7 @@ Extra columns beyond the brief: positions.stop_pct + status (per-position stop, 
 signals.reason. Constraints: FKs to coins, enums, one non-closed position per mint, one signal per mint."""
 import os, sqlite3
 from datetime import datetime, timezone
-DB = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "desk.db")
+DB = os.environ.get("DESK_DB") or os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "desk.db")
 MODE = "CHECK(mode IN('PAPER','LIVE'))"
 SCHEMA = f"""
 CREATE TABLE IF NOT EXISTS coins (mint TEXT PRIMARY KEY, name TEXT, symbol TEXT, pool TEXT, migrated_at TEXT NOT NULL,
